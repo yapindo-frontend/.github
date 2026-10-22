@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Masalah keamanan
+    url: https://yaplib-site.pages.dev/handbook/security-and-licenses/
+    about: Jangan buat issue untuk celah keamanan atau secret yang bocor. Kabari maintainer secara langsung.
+  - name: Cara kerja tim
+    url: https://yaplib-site.pages.dev/handbook/how-we-work/
+    about: Branch, commit, pull request, dan review — baca handbook dulu kalau ada yang bingung.

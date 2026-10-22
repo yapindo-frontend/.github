@@ -1,0 +1,21 @@
+# Also add release-please-config.json and .release-please-manifest.json at the repository's root:
+# see the handbook's "Releases with release-please".
+name: Release
+
+on:
+  push:
+    branches: [$default-branch]
+
+permissions: {}
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
