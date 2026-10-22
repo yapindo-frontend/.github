@@ -1,0 +1,7 @@
+{
+	"name": "Yapindo CI (pnpm)",
+	"description": "Type check, lint, unit tests and build on every pull request and push to the production branch, as the frontend handbook sets it up.",
+	"iconName": "octicon check-circle",
+	"categories": ["JavaScript", "TypeScript", "Svelte"],
+	"filePatterns": ["pnpm-lock.yaml$"]
+}

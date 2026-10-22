@@ -1,0 +1,7 @@
+{
+	"name": "Yapindo Release (release-please)",
+	"description": "Keeps a release pull request with the next version and changelog, worked out from Conventional Commits.",
+	"iconName": "octicon tag",
+	"categories": ["JavaScript", "TypeScript"],
+	"filePatterns": ["release-please-config.json$"]
+}

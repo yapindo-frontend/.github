@@ -1,0 +1,63 @@
+name: Laporan Bug
+description: Laporkan sesuatu yang tidak berjalan sebagaimana mestinya
+title: '[Bug]: '
+labels: ['bug', 'needs-triage']
+body:
+  - type: markdown
+    attributes:
+      value: Terima kasih sudah melapor. Isi sedetail mungkin supaya bug-nya bisa direproduksi.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Deskripsi
+      description: Apa yang terjadi?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Langkah Reproduksi
+      placeholder: |
+        1. Buka halaman '...'
+        2. Klik '...'
+        3. Muncul error '...'
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Perilaku yang Diharapkan
+    validations:
+      required: true
+
+  - type: input
+    id: url
+    attributes:
+      label: URL Halaman
+      placeholder: https://...
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Production
+        - Staging / Preview
+        - Lokal
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Browser & Perangkat
+      placeholder: Chrome di Android, Safari di iPhone, aplikasi desktop di Windows, ...
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshot / Log
+      description: Lampirkan screenshot, pesan error, atau link Sentry. Hapus token dan data pribadi dulu.

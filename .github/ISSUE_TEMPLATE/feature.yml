@@ -1,0 +1,34 @@
+name: Permintaan Fitur
+description: Usulkan fitur yang belum ada
+title: '[Fitur]: '
+labels: ['enhancement', 'needs-triage']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Latar Belakang
+      description: Masalah atau kebutuhan apa yang mau diselesaikan, dan untuk siapa?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Usulan Solusi
+      description: Seperti apa fitur yang diharapkan?
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Kriteria Penerimaan
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+
+  - type: textarea
+    id: references
+    attributes:
+      label: Referensi
+      description: Desain, mockup, atau endpoint API terkait.
