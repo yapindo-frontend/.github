@@ -1,7 +1,7 @@
 name: Peningkatan
 description: Perbaiki fitur yang sudah ada (UX, tampilan, performa, atau teks)
 title: '[Peningkatan]: '
-labels: ['improvement', 'needs-triage']
+type: Feature
 body:
   - type: dropdown
     id: kind

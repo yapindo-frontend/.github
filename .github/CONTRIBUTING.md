@@ -7,8 +7,9 @@ Setup and project-specific rules are in each repository's README.
 ## Workflow
 
 1. **Every change starts from an issue or task.** Use one of the issue forms (Laporan Bug, Permintaan Fitur,
-   Peningkatan, Tugas Teknis). New issues get `needs-triage`.
-2. **Triage**: whoever triages sets a `priority:*` label, assigns an owner, and removes `needs-triage`.
+   Peningkatan, Tugas Teknis); each sets the issue's type.
+2. **Triage**: whoever triages sets the **Priority** field (and **Effort** when it helps planning) and assigns an owner.
+   An issue with no Priority hasn't been triaged yet.
 3. **Branch** from the repository's integration branch (`dev` where it has one, otherwise `main` or `master`),
    named `<type>/<task-id>-<short-name>`:
 
@@ -25,15 +26,19 @@ Setup and project-specific rules are in each repository's README.
 6. **Review**: go through the [Definition of done](https://yaplib-site.pages.dev/handbook/definition-of-done/) first. Code owners review as
    [Code review](https://yaplib-site.pages.dev/handbook/code-review/) describes. Never merge with red checks.
 
-## Labels
+## Issue types
 
-| Label             | Meaning                                                      |
-| ----------------- | ------------------------------------------------------------ |
-| `bug`             | Something that is broken                                     |
-| `enhancement`     | A feature that does not exist yet                            |
-| `improvement`     | Making an existing feature better (UX, UI, performance)      |
-| `task`            | Technical work with no behavior change (deps, CI, tech debt) |
-| `needs-triage`    | Not yet prioritized or assigned                              |
-| `priority:high`   | Blocks users or breaks production: pick up immediately       |
-| `priority:medium` | Planned for the current or next iteration                    |
-| `priority:low`    | Nice to have: picked up when there is room                   |
+| Type      | Use for                                                                       | Form                          |
+| --------- | ----------------------------------------------------------------------------- | ----------------------------- |
+| `Bug`     | Something that is broken                                                      | Laporan Bug                   |
+| `Feature` | A feature that does not exist yet, or making one better (UX, UI, performance) | Permintaan Fitur, Peningkatan |
+| `Task`    | Technical work with no behavior change (deps, CI, tech debt)                  | Tugas Teknis                  |
+
+## Priority
+
+| Priority | Meaning                                                |
+| -------- | ------------------------------------------------------ |
+| Urgent   | Breaks production or blocks users: pick up immediately |
+| High     | Planned for the current iteration                      |
+| Medium   | Planned for the next iteration                         |
+| Low      | Nice to have: picked up when there is room             |
