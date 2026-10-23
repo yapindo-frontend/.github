@@ -1,0 +1,75 @@
+# Deploys one or more Vercel projects from GitHub Actions with the team's token.
+# Commit authors don't need a Vercel seat: the deploy is created by the token owner.
+#
+# Caller:
+#   deploy:
+#     uses: yapindo-frontend/.github/.github/workflows/vercel-deploy.yml@v1
+#     with:
+#       team: yapindo-fe-s-team            # or yapindo-frontend-2
+#       projects: '["neo-bootcamp"]'       # JSON array of Vercel project names
+#     secrets: inherit                     # needs VERCEL_TOKEN for that team
+#
+# A push deploys to production; any other event (pull_request) makes a preview.
+name: Vercel deploy
+
+on:
+  workflow_call:
+    inputs:
+      team:
+        description: Vercel team slug (yapindo-fe-s-team or yapindo-frontend-2)
+        type: string
+        required: true
+      projects:
+        description: JSON array of Vercel project names to deploy
+        type: string
+        required: true
+    secrets:
+      VERCEL_TOKEN:
+        required: true
+
+permissions: {}
+
+jobs:
+  deploy:
+    name: Deploy ${{ matrix.project }}
+    # Self-hosted while the org's Actions minutes are used up; the job only uploads, Vercel builds.
+    runs-on: [self-hosted, vercel]
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(inputs.projects) }}
+    env:
+      T: ${{ secrets.VERCEL_TOKEN }}
+      PROD: ${{ github.event_name == 'push' && '--prod' || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      # Without git metadata Vercel can't match the commit author to a team member,
+      # which is what blocks deploys by people without a seat (CLI deploys included).
+      - run: rm -rf .git
+
+      - name: Link the Vercel project
+        env:
+          TEAM: ${{ inputs.team }}
+          PROJECT: ${{ matrix.project }}
+        run: npx -y vercel@latest link --yes --project "$PROJECT" --scope "$TEAM" --token "$T"
+
+      # No --prebuilt: Vercel builds, so this job costs no build minutes here.
+      # --meta keeps who and what triggered the deploy, since the creator is always the token owner.
+      - name: Deploy
+        run: |
+          npx -y vercel@latest deploy $PROD --token "$T" \
+            --meta actor="$GITHUB_ACTOR" \
+            --meta triggeredBy="$GITHUB_TRIGGERING_ACTOR" \
+            --meta repo="$GITHUB_REPOSITORY" \
+            --meta ref="$GITHUB_REF_NAME" \
+            --meta sha="$GITHUB_SHA" \
+            --meta run="$GITHUB_RUN_ID"
