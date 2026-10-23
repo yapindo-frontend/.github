@@ -1,7 +1,7 @@
 name: Tugas Teknis
 description: Pekerjaan teknis tanpa perubahan perilaku (dependensi, CI, infrastruktur, utang teknis)
 title: '[Tugas]: '
-labels: ['task', 'needs-triage']
+type: Task
 body:
   - type: textarea
     id: description

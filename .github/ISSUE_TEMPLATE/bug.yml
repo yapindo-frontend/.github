@@ -1,7 +1,7 @@
 name: Laporan Bug
 description: Laporkan sesuatu yang tidak berjalan sebagaimana mestinya
 title: '[Bug]: '
-labels: ['bug', 'needs-triage']
+type: Bug
 body:
   - type: markdown
     attributes:

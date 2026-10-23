@@ -1,7 +1,7 @@
 name: Permintaan Fitur
 description: Usulkan fitur yang belum ada
 title: '[Fitur]: '
-labels: ['enhancement', 'needs-triage']
+type: Feature
 body:
   - type: textarea
     id: problem
