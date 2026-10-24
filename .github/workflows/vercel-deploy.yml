@@ -7,9 +7,13 @@
 #     with:
 #       team: yapindo-fe-s-team            # or yapindo-frontend-2
 #       projects: '["neo-bootcamp"]'       # JSON array of Vercel project names
+#       production-branch: master          # optional, see below
 #     secrets: inherit                     # needs VERCEL_TOKEN for that team
 #
 # A push deploys to production; any other event (pull_request) makes a preview.
+# With production-branch set, only a push to that branch goes to production. A push to
+# any other branch makes a preview and moves that branch's domains (the project's
+# domains assigned to the branch, such as a staging domain for dev) onto it.
 name: Vercel deploy
 
 on:
@@ -23,6 +27,10 @@ on:
         description: JSON array of Vercel project names to deploy
         type: string
         required: true
+      production-branch:
+        description: The branch whose pushes deploy to production. Empty means every push does.
+        type: string
+        default: ''
     secrets:
       VERCEL_TOKEN:
         required: true
@@ -45,7 +53,11 @@ jobs:
         project: ${{ fromJSON(inputs.projects) }}
     env:
       T: ${{ secrets.VERCEL_TOKEN }}
-      PROD: ${{ github.event_name == 'push' && '--prod' || '' }}
+      PROD: ${{ github.event_name == 'push' && (inputs.production-branch == '' || github.ref_name == inputs.production-branch) && '--prod' || '' }}
+      # A push to a branch other than production, whose domains must follow it.
+      BRANCH_PUSH: ${{ github.event_name == 'push' && inputs.production-branch != '' && github.ref_name != inputs.production-branch }}
+      TEAM: ${{ inputs.team }}
+      PROJECT: ${{ matrix.project }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -59,19 +71,33 @@ jobs:
       - run: rm -rf .git
 
       - name: Link the Vercel project
-        env:
-          TEAM: ${{ inputs.team }}
-          PROJECT: ${{ matrix.project }}
         run: npx -y vercel@latest link --yes --project "$PROJECT" --scope "$TEAM" --token "$T"
 
       # No --prebuilt: Vercel builds, so this job costs no build minutes here.
       # --meta keeps who and what triggered the deploy, since the creator is always the token owner.
       - name: Deploy
+        id: deploy
         run: |
-          npx -y vercel@latest deploy $PROD --token "$T" \
+          url=$(npx -y vercel@latest deploy $PROD --token "$T" \
             --meta actor="$GITHUB_ACTOR" \
             --meta triggeredBy="$GITHUB_TRIGGERING_ACTOR" \
             --meta repo="$GITHUB_REPOSITORY" \
             --meta ref="$GITHUB_REF_NAME" \
             --meta sha="$GITHUB_SHA" \
-            --meta run="$GITHUB_RUN_ID"
+            --meta run="$GITHUB_RUN_ID")
+          echo "$url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      # Vercel's Git integration used to do this; CLI deploys carry no branch, so do it here.
+      - name: Move the branch's domains to this deploy
+        if: env.BRANCH_PUSH == 'true'
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          domains=$(curl -fsS -H "Authorization: Bearer $T" \
+            "https://api.vercel.com/v9/projects/$PROJECT/domains?slug=$TEAM&limit=100" |
+            jq -r --arg b "$GITHUB_REF_NAME" '.domains[] | select(.gitBranch == $b) | .name')
+          [ -n "$domains" ] || { echo "No domain is assigned to $GITHUB_REF_NAME"; exit 0; }
+          for d in $domains; do
+            npx -y vercel@latest alias set "$URL" "$d" --token "$T" --scope "$TEAM"
+          done
