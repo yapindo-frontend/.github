@@ -80,5 +80,7 @@ jobs:
             Post the summary with `gh pr comment`.
             Post findings on specific lines with `mcp__github_inline_comment__create_inline_comment` (confirmed: true).
             Only post GitHub comments; don't answer with the review as text.
+            End the summary comment with this exact line, unchanged:
+            <sub>Dipicu oleh @${{ github.triggering_actor }} · [run ${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>
           claude_args: |
             --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
