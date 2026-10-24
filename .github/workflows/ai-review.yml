@@ -27,7 +27,8 @@ permissions: {}
 jobs:
   review:
     name: YapReview
-    runs-on: ubuntu-latest
+    # Self-hosted, like the deploy: hosted minutes run out, and a review takes several.
+    runs-on: [self-hosted, vercel]
     timeout-minutes: 15
     permissions:
       contents: read
