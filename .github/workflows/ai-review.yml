@@ -27,8 +27,9 @@ permissions: {}
 jobs:
   review:
     name: YapReview
-    # Self-hosted, like the deploy: hosted minutes run out, and a review takes several.
-    runs-on: [self-hosted, vercel]
+    # The org's self-hosted runner unless the calling repo sets the variable RUNNER
+    # (e.g. ubuntu-latest while hosted minutes are left).
+    runs-on: ${{ vars.RUNNER || fromJSON('["self-hosted","vercel"]') }}
     timeout-minutes: 15
     permissions:
       contents: read

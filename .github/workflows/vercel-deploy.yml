@@ -32,8 +32,10 @@ permissions: {}
 jobs:
   deploy:
     name: Deploy ${{ matrix.project }}
-    # Self-hosted while the org's Actions minutes are used up; the job only uploads, Vercel builds.
-    runs-on: [self-hosted, vercel]
+    # The org's self-hosted runner unless the calling repo sets the variable RUNNER
+    # (e.g. ubuntu-latest while hosted minutes are left).
+    # The job only uploads; Vercel builds.
+    runs-on: ${{ vars.RUNNER || fromJSON('["self-hosted","vercel"]') }}
     timeout-minutes: 10
     permissions:
       contents: read
