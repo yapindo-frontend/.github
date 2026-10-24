@@ -94,10 +94,15 @@ jobs:
         env:
           URL: ${{ steps.deploy.outputs.url }}
         run: |
-          domains=$(curl -fsS -H "Authorization: Bearer $T" \
-            "https://api.vercel.com/v9/projects/$PROJECT/domains?slug=$TEAM&limit=100" |
+          api=https://api.vercel.com
+          auth="Authorization: Bearer $T"
+          domains=$(curl -fsS -H "$auth" "$api/v9/projects/$PROJECT/domains?slug=$TEAM&limit=100" |
             jq -r --arg b "$GITHUB_REF_NAME" '.domains[] | select(.gitBranch == $b) | .name')
           [ -n "$domains" ] || { echo "No domain is assigned to $GITHUB_REF_NAME"; exit 0; }
+          id=$(curl -fsS -H "$auth" "$api/v13/deployments/${URL#https://}?slug=$TEAM" | jq -r .id)
+          # The API, unlike `vercel alias set`, also takes a project's domains owned outside the team.
           for d in $domains; do
-            npx -y vercel@latest alias set "$URL" "$d" --token "$T" --scope "$TEAM"
+            curl -sS --fail-with-body -X POST -H "$auth" -H "Content-Type: application/json" \
+              -d "{\"alias\":\"$d\"}" "$api/v2/deployments/$id/aliases?slug=$TEAM"
+            echo; echo "$d -> $URL"
           done
