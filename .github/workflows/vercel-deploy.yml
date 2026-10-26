@@ -12,10 +12,13 @@
 #
 # A push deploys to production; any other event (pull_request) makes a preview.
 # With production-branch set, only a push to that branch goes to production. A push to
-# any other branch deploys only if the Vercel project has domains assigned to that branch
-# (such as a staging domain for dev): it makes a preview and moves those domains onto it.
-# So a caller can listen to pushes on every branch, and assigning a domain to a branch in
-# Vercel is all it takes.
+# any other branch deploys only if the Vercel project has somewhere for it:
+#   - a custom environment named like the branch (e.g. "dev"): it deploys there, and
+#     Vercel moves that environment's domains onto it;
+#   - otherwise domains assigned to the branch (set while the Git integration was on):
+#     it makes a preview and moves those domains onto it.
+# So a caller can listen to pushes on every branch, and creating a custom environment
+# named after the branch, with its domain, in Vercel is all it takes.
 name: Vercel deploy
 
 on:
@@ -61,15 +64,23 @@ jobs:
       TEAM: ${{ inputs.team }}
       PROJECT: ${{ matrix.project }}
     steps:
-      # Vercel's Git integration moved these domains; CLI deploys carry no branch, so do it here.
-      - name: Find the branch's domains
+      # Vercel's Git integration moved branch domains; CLI deploys carry no branch, so do it here.
+      - name: Find where the branch deploys
         id: domains
         if: env.BRANCH_PUSH == 'true'
         run: |
-          names=$(curl -fsS -H "Authorization: Bearer $T" \
-            "https://api.vercel.com/v9/projects/$PROJECT/domains?slug=$TEAM&limit=100" |
+          api=https://api.vercel.com
+          auth="Authorization: Bearer $T"
+          env=$(curl -fsS -H "$auth" "$api/v9/projects/$PROJECT/custom-environments?slug=$TEAM" |
+            jq -r --arg b "$GITHUB_REF_NAME" '[.environments[] | select(.slug == $b) | .slug][0] // empty')
+          if [ -n "$env" ]; then
+            echo "Custom environment $env"
+            echo "TARGET=--target=$env" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          names=$(curl -fsS -H "$auth" "$api/v9/projects/$PROJECT/domains?slug=$TEAM&limit=100" |
             jq -r --arg b "$GITHUB_REF_NAME" '[.domains[] | select(.gitBranch == $b) | .name] | join(" ")')
-          echo "${names:-No domain is assigned to $GITHUB_REF_NAME, nothing to deploy}"
+          echo "${names:-No custom environment or domain for $GITHUB_REF_NAME, nothing to deploy}"
           echo "names=$names" >> "$GITHUB_OUTPUT"
           [ -n "$names" ] || echo "SKIP=true" >> "$GITHUB_ENV"
 
@@ -97,7 +108,7 @@ jobs:
         id: deploy
         if: env.SKIP != 'true'
         run: |
-          url=$(npx -y vercel@latest deploy $PROD --token "$T" \
+          url=$(npx -y vercel@latest deploy $PROD $TARGET --token "$T" \
             --meta actor="$GITHUB_ACTOR" \
             --meta triggeredBy="$GITHUB_TRIGGERING_ACTOR" \
             --meta repo="$GITHUB_REPOSITORY" \
@@ -108,7 +119,7 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       - name: Move the branch's domains to this deploy
-        if: env.BRANCH_PUSH == 'true' && env.SKIP != 'true'
+        if: steps.domains.outputs.names != '' && env.SKIP != 'true'
         env:
           URL: ${{ steps.deploy.outputs.url }}
           DOMAINS: ${{ steps.domains.outputs.names }}
