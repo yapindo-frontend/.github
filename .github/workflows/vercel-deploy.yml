@@ -180,8 +180,9 @@ jobs:
           } > "$RUNNER_TEMP/deploy-summary.md"
           cat "$RUNNER_TEMP/deploy-summary.md" >> "$GITHUB_STEP_SUMMARY"
 
-      # The comment comes from yapreview[bot]: the callers' GITHUB_TOKEN can't write to
-      # pull requests, and the app's key is already in every repository.
+      # The comment comes from yapreview[bot], whose key is already in every repository, so
+      # it doesn't depend on what the caller's GITHUB_TOKEN may do (read-only by default
+      # once the organization tightens it).
       - name: Token for the pull request comment
         id: app
         if: env.SKIP != 'true' && github.event_name == 'pull_request' && env.HAS_APP_KEY == 'true'
