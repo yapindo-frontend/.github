@@ -8,7 +8,8 @@
 #       team: yapindo-fe-s-team            # or yapindo-frontend-2
 #       projects: '["neo-bootcamp"]'       # JSON array of Vercel project names
 #       production-branch: master          # optional, see below
-#     secrets: inherit                     # needs VERCEL_TOKEN for that team
+#     secrets: inherit                     # needs VERCEL_TOKEN for that team; REVIEWER_APP_KEY
+#                                          # (optional) for the pull request comment
 #
 # A push deploys to production; any other event (pull_request) makes a preview.
 # With production-branch set, only a push to that branch goes to production. A push to
@@ -19,6 +20,10 @@
 #     it makes a preview and moves those domains onto it.
 # So a caller can listen to pushes on every branch, and creating a custom environment
 # named after the branch, with its domain, in Vercel is all it takes.
+#
+# Each deploy writes its address to the job summary. A preview or staging deploy also
+# gets a shareable link, which opens it without a Vercel seat, and a pull request gets
+# one comment per project with both, updated on every push.
 name: Vercel deploy
 
 on:
@@ -39,6 +44,9 @@ on:
     secrets:
       VERCEL_TOKEN:
         required: true
+      REVIEWER_APP_KEY:
+        description: Private key of the YapReview GitHub App, which writes the pull request comment
+        required: false
 
 permissions: {}
 
@@ -63,6 +71,7 @@ jobs:
       BRANCH_PUSH: ${{ github.event_name == 'push' && inputs.production-branch != '' && github.ref_name != inputs.production-branch }}
       TEAM: ${{ inputs.team }}
       PROJECT: ${{ matrix.project }}
+      HAS_APP_KEY: ${{ secrets.REVIEWER_APP_KEY != '' }}
     steps:
       # Vercel's Git integration moved branch domains; CLI deploys carry no branch, so do it here.
       - name: Find where the branch deploys
@@ -133,3 +142,71 @@ jobs:
               -d "{\"alias\":\"$d\"}" "$api/v2/deployments/$id/aliases?slug=$TEAM"
             echo; echo "$d -> $URL"
           done
+
+      # Previews are behind Vercel Authentication, which opens only for the Vercel team's
+      # seats; a shareable link lets in anyone who has it. One per deployment, 30 days.
+      - name: Create a share link
+        id: share
+        if: env.SKIP != 'true' && env.PROD == ''
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          api=https://api.vercel.com
+          auth="Authorization: Bearer $T"
+          id=$(curl -fsS -H "$auth" "$api/v13/deployments/${URL#https://}?slug=$TEAM" | jq -r .id)
+          secret=$(curl -sS -X PATCH -H "$auth" -H "Content-Type: application/json" -d '{"ttl":2592000}' \
+            "$api/aliases/$id/protection-bypass?slug=$TEAM" |
+            jq -r '[.protectionBypass // {} | to_entries[] | select(.value.scope == "shareable-link")] | max_by(.value.createdAt) | .key // empty')
+          if [ -n "$secret" ]; then echo "url=$URL/?_vercel_share=$secret" >> "$GITHUB_OUTPUT"; else echo "No share link"; fi
+
+      - name: Write the summary
+        if: env.SKIP != 'true'
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+          SHARE: ${{ steps.share.outputs.url }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          kind=Preview
+          [ -n "$PROD" ] && kind=Production
+          [ -n "${TARGET:-}" ] && kind="Staging (${TARGET#--target=})"
+          {
+            echo "### $kind \`$PROJECT\`"
+            echo
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Alamat | $URL |"
+            [ -n "$SHARE" ] && echo "| Tanpa akun Vercel | [Buka lewat share link]($SHARE) (berlaku 30 hari) |"
+            echo "| Commit | [\`${SHA:0:7}\`]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$SHA) oleh $GITHUB_ACTOR · [run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID) |"
+          } > "$RUNNER_TEMP/deploy-summary.md"
+          cat "$RUNNER_TEMP/deploy-summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      # The comment comes from yapreview[bot], whose key is already in every repository, so
+      # it doesn't depend on what the caller's GITHUB_TOKEN may do (read-only by default
+      # once the organization tightens it).
+      - name: Token for the pull request comment
+        id: app
+        if: env.SKIP != 'true' && github.event_name == 'pull_request' && env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: Iv23li42QnUpk2HKQHot
+          private-key: ${{ secrets.REVIEWER_APP_KEY }}
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Comment on the pull request
+        if: steps.app.outputs.token != ''
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # One comment per project, found by its marker and updated on every push.
+          marker="<!-- vercel-deploy:$PROJECT -->"
+          body="$marker
+          $(cat "$RUNNER_TEMP/deploy-summary.md")"
+          id=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -f body="$body" --silent
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" --silent
+          fi
