@@ -170,9 +170,7 @@ jobs:
           [ -n "$PROD" ] && kind=Production
           [ -n "${TARGET:-}" ] && kind="Staging (${TARGET#--target=})"
           {
-            echo "### $kind \`$PROJECT\`"
-            echo
-            echo "| | |"
+            echo "| $kind | \`$PROJECT\` |"
             echo "| --- | --- |"
             echo "| Alamat | $URL |"
             [ -n "$SHARE" ] && echo "| Tanpa akun Vercel | [Buka lewat share link]($SHARE) (berlaku 30 hari) |"
