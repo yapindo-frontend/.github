@@ -8,8 +8,11 @@
 #       team: yapindo-fe-s-team            # or yapindo-frontend-2
 #       projects: '["neo-bootcamp"]'       # JSON array of Vercel project names
 #       production-branch: master          # optional, see below
-#     secrets: inherit                     # needs VERCEL_TOKEN for that team; REVIEWER_APP_KEY
-#                                          # (optional) for the pull request comment
+#     permissions:
+#       contents: read
+#     secrets:                             # only these, not `secrets: inherit`
+#       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}          # for that team
+#       REVIEWER_APP_KEY: ${{ secrets.REVIEWER_APP_KEY }}  # optional: the pull request comment
 #
 # A push deploys to production; any other event (pull_request) makes a preview.
 # With production-branch set, only a push to that branch goes to production. A push to
