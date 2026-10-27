@@ -24,6 +24,9 @@
 # Each deploy writes its address to the job summary. A preview or staging deploy also
 # gets a shareable link, which opens it without a Vercel seat, and a pull request gets
 # one comment per project with both, updated on every push.
+#
+# When this workflow can't run, a maintainer deploys the same way from a laptop with
+# scripts/vercel-deploy.sh.
 name: Vercel deploy
 
 on:
