@@ -151,16 +151,22 @@ jobs:
 
       # Previews are behind Vercel Authentication, which opens only for the Vercel team's
       # seats; a shareable link lets in anyone who has it. One per deployment, 30 days.
+      # The link is a nicety: a slow or failing Vercel API must not fail a deploy that worked.
       - name: Create a share link
         id: share
         if: env.SKIP != 'true' && env.PROD == ''
+        continue-on-error: true
+        timeout-minutes: 3
         env:
           URL: ${{ steps.deploy.outputs.url }}
         run: |
           api=https://api.vercel.com
           auth="Authorization: Bearer $T"
-          id=$(curl -fsS -H "$auth" "$api/v13/deployments/${URL#https://}?slug=$TEAM" | jq -r .id)
-          secret=$(curl -sS -X PATCH -H "$auth" -H "Content-Type: application/json" -d '{"ttl":2592000}' \
+          # -f keeps error pages away from jq; --max-time stops a hung request
+          call() { curl -fsS --max-time 30 --retry 2 -H "$auth" "$@"; }
+          id=$(call "$api/v13/deployments/${URL#https://}?slug=$TEAM" | jq -r '.id // empty')
+          [ -n "$id" ] || { echo "No share link: deployment not found"; exit 0; }
+          secret=$(call -X PATCH -H "Content-Type: application/json" -d '{"ttl":2592000}' \
             "$api/aliases/$id/protection-bypass?slug=$TEAM" |
             jq -r '[.protectionBypass // {} | to_entries[] | select(.value.scope == "shareable-link")] | max_by(.value.createdAt) | .key // empty')
           if [ -n "$secret" ]; then echo "url=$URL/?_vercel_share=$secret" >> "$GITHUB_OUTPUT"; else echo "No share link"; fi
