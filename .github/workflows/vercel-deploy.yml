@@ -28,6 +28,16 @@
 # gets a shareable link, which opens it without a Vercel seat, and a pull request gets
 # one comment per project with both, updated on every push.
 #
+# Outputs, for jobs that run against the deploy (e2e tests, Lighthouse):
+#   urls  JSON object of project name to deploy address, e.g. {"neo-bootcamp":"https://…"}.
+#         Projects that didn't deploy (nothing for the branch, or a failed deploy) are absent.
+#   url   The address when exactly one project deployed, otherwise empty.
+# Caller:
+#   e2e:
+#     needs: deploy
+#     if: needs.deploy.outputs.url != ''
+#     ... run against ${{ needs.deploy.outputs.url }}
+#
 # When this workflow can't run, a maintainer deploys the same way from a laptop with
 # scripts/vercel-deploy.sh.
 name: Vercel deploy
@@ -53,6 +63,13 @@ on:
       REVIEWER_APP_KEY:
         description: Private key of the YapReview GitHub App, which writes the pull request comment
         required: false
+    outputs:
+      urls:
+        description: JSON object of project name to deploy address, for the projects that deployed
+        value: ${{ jobs.urls.outputs.urls }}
+      url:
+        description: The deploy address when exactly one project deployed, otherwise empty
+        value: ${{ jobs.urls.outputs.url }}
 
 permissions: {}
 
@@ -132,6 +149,22 @@ jobs:
             --meta run="$GITHUB_RUN_ID")
           echo "$url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      # A matrix job can't combine its legs' outputs (the last leg wins), so each leg
+      # hands its address to the `urls` job below as a small artifact.
+      - name: Keep the address for the caller
+        if: steps.deploy.outputs.url != ''
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/deploy-url"
+          printf '%s' "$URL" > "$RUNNER_TEMP/deploy-url/$PROJECT"
+      - if: steps.deploy.outputs.url != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vercel-deploy-url-${{ matrix.project }}
+          path: ${{ runner.temp }}/deploy-url/${{ matrix.project }}
+          retention-days: 1
 
       - name: Move the branch's domains to this deploy
         if: steps.domains.outputs.names != '' && env.SKIP != 'true'
@@ -220,3 +253,35 @@ jobs:
           else
             gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" --silent
           fi
+
+  # Collects the legs' addresses into the workflow's outputs. Runs even when a leg
+  # failed, so the projects that did deploy are still reported.
+  urls:
+    name: Deploy addresses
+    needs: deploy
+    if: ${{ !cancelled() }}
+    runs-on: ${{ vars.RUNNER || fromJSON('["self-hosted","vercel"]') }}
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      urls: ${{ steps.collect.outputs.urls }}
+      url: ${{ steps.collect.outputs.url }}
+    steps:
+      # Nothing to download when no project deployed; that's an empty result, not an error.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          pattern: vercel-deploy-url-*
+          path: ${{ runner.temp }}/deploy-url
+          merge-multiple: true
+      - name: Collect
+        id: collect
+        run: |
+          dir="$RUNNER_TEMP/deploy-url"
+          mkdir -p "$dir"
+          # One file per project that deployed, named after it, holding its address.
+          urls=$(cd "$dir" && for f in *; do [ -f "$f" ] && jq -n --arg p "$f" --rawfile u "$f" '{($p): $u}'; done | jq -cs 'add // {}')
+          url=$(jq -r 'if length == 1 then .[] else "" end' <<< "$urls")
+          echo "$urls"
+          echo "urls=$urls" >> "$GITHUB_OUTPUT"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
