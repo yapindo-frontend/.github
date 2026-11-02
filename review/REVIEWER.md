@@ -65,7 +65,52 @@ Hindari gaya kaku seperti: "Disarankan untuk melakukan pengecekan terhadap keter
 3. **Data dan kompatibilitas**: perubahan API/skema yang memutus pemanggil lain, migrasi yang menghapus data.
 4. **Performa**: fetch berulang di `load`, waterfall request, bundle besar karena import penuh, gambar tanpa ukuran.
 5. **Aksesibilitas**: elemen interaktif tanpa label, `on:click` di `div` tanpa keyboard handler, kontras jelas buruk.
-6. **Keterbacaan**: hanya jika benar-benar menyulitkan pemeliharaan.
+6. **Keterbacaan dan standar kode tim**: pelanggaran standar di bawah, dan keterbacaan lain hanya jika benar-benar menyulitkan pemeliharaan.
+
+## Standar kode tim
+
+Ringkasan halaman "Standar kode" di handbook tim (dokumentasi yaplib). Pakai bagian yang cocok dengan stack repo: aturan Svelte hanya untuk proyek Svelte, aturan Tailwind hanya untuk proyek yang memakai Tailwind. Pelanggaran biasanya **Sebaiknya** atau **Saran**; jadi **Wajib** kalau menyebabkan bug, menyembunyikan kegagalan, atau bikin data pengguna hilang.
+
+**Pengujian**
+- Perubahan perilaku datang bersama pengujiannya, dan perbaikan bug dengan pengujian yang gagal tanpa perbaikan itu. Uji perilakunya, bukan implementasinya; di pengujian komponen, cari elemen berdasarkan role dan label, bukan class atau test id.
+
+**Kode bersih**
+- Nama menyatakan apa sesuatu itu atau apa yang dilakukannya, tanpa singkatan.
+- Fungsi kecil yang melakukan satu hal. Return lebih awal daripada `if` bersarang; alur utama tetap di margin kiri.
+- Tanpa ternary bersarang: pakai return lebih awal, `if`/`else`, atau objek pemetaan.
+- Sederhana lebih baik daripada cerdik. Angka atau string bermakna diberi nama konstanta.
+- Tanpa kode mati dan tanpa kode yang dijadikan komentar.
+- DRY untuk pengetahuan: satu aturan, nilai, atau tipe punya satu sumber (konstanta, design token, tipe bersama, satu skema validasi untuk klien dan server). Kode yang cuma kebetulan mirip jangan disuruh digabung; abstraksi baru setelah salinan ketiga.
+
+**Penanganan galat**
+- Jangan menelan galat: `catch` kosong atau yang cuma `console.log` menyembunyikan bug.
+- Antisipasi jaringan putus atau lambat, respons tidak `ok`, data dari luar yang tidak sesuai (validasi), dan izin ditolak.
+- Beri tahu pengguna apa yang terjadi dan apa yang harus dilakukan, dan pertahankan pekerjaannya.
+- Setiap promise di-`await` atau ditangani.
+- Yang tak terduga dilaporkan ke Sentry; yang terduga, seperti galat validasi formulir, ditangani tanpa dilaporkan.
+- Setiap aplikasi punya halaman galat sendiri (`+error.svelte` di SvelteKit).
+
+**TypeScript**
+- Strict; tidak ada `any` tanpa komentar alasannya. Discriminated union lebih baik daripada field opsional yang saling bergantung.
+- Named export; default export hanya untuk komponen Svelte.
+- Logika di fungsi murni kecil yang bebas dari Svelte dan DOM.
+
+**Svelte 5**
+- Runes (`$state`, `$derived`, `$effect`, `$props`, `$bindable`). Tidak ada sintaks Svelte 4 di kode baru: `export let`, `$:`, `<slot>`, `createEventDispatcher`, store.
+- Snippet (`{#snippet}`, `{@render}`) sebagai pengganti slot, callback prop (`onchange`) sebagai pengganti event yang di-dispatch.
+- `$derived` dulu, baru `$effect`. Effect hanya untuk menjangkau hal di luar Svelte, dan yang menambah listener, observer, atau worker mengembalikan fungsi cleanup.
+- `window`, `document`, atau `Worker` hanya disentuh di `onMount` atau `$effect`, tidak di tingkat atas modul.
+- Komponen kecil; logika di modul biasa, state reaktif bersama di berkas `.svelte.ts`.
+
+**Tailwind CSS**
+- Nilai dari tema sistem desain (`p-4`, `text-sm`, `rounded-lg`), bukan nilai arbitrer (`p-[13px]`, `text-[#0b5cad]`). Nilai yang dibutuhkan desain didefinisikan sekali sebagai variabel tema di CSS utama aplikasi. Nilai yang benar-benar sekali pakai boleh arbitrer, dengan komentar alasannya.
+- Daftar class yang berulang di beberapa tempat dijadikan komponen, bukan string yang disalin.
+
+**Komentar**
+- Komentar menjelaskan kenapa, bukan apa; komentar yang cuma mengulang kode dihapus.
+- Tidak ada `console.log` yang tertinggal. Kode dan komentarnya dalam bahasa Inggris.
+
+Format dan gaya penulisan diurus Prettier dan ESLint, jadi tidak dikomentari (lihat bagian berikut).
 
 ## Yang tidak dikomentari
 
