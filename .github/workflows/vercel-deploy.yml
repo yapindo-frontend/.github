@@ -107,7 +107,7 @@ jobs:
             jq -r --arg b "$GITHUB_REF_NAME" '[.environments[] | select(.slug == $b) | .slug][0] // empty')
           if [ -n "$env" ]; then
             echo "Custom environment $env"
-            echo "TARGET=--target=$env" >> "$GITHUB_ENV"
+            echo "TARGET=--environment=$env" >> "$GITHUB_ENV"
             exit 0
           fi
           names=$(curl -fsS -H "$auth" "$api/v9/projects/$PROJECT/domains?slug=$TEAM&limit=100" |
@@ -213,7 +213,7 @@ jobs:
         run: |
           kind=Preview
           [ -n "$PROD" ] && kind=Production
-          [ -n "${TARGET:-}" ] && kind="Staging (${TARGET#--target=})"
+          [ -n "${TARGET:-}" ] && kind="Staging (${TARGET#--environment=})"
           {
             echo "| $kind | \`$PROJECT\` |"
             echo "| --- | --- |"
