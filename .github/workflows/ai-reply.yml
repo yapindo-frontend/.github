@@ -54,7 +54,7 @@ jobs:
     permissions:
       contents: read
     env:
-      MAX_REPLIES: 10
+      MAX_REPLIES: 2
       REPLY_MARK: '<!-- yapreview-reply -->'
       LIMIT_MARK: '<!-- yapreview-reply-limit -->'
       REPO: ${{ github.repository }}
